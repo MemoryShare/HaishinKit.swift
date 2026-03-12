@@ -143,8 +143,9 @@ extension MTHKView: MediaMixerOutput {
     }
 
     nonisolated public func mixer(_ mixer: MediaMixer, didOutput sampleBuffer: CMSampleBuffer) {
+        let image = try? sampleBuffer.imageBuffer?.makeCIImage()
         Task { @MainActor in
-            displayImage = try? sampleBuffer.imageBuffer?.makeCIImage()
+            displayImage = image
             #if os(macOS)
             self.needsDisplay = true
             #else
@@ -160,8 +161,9 @@ extension MTHKView: StreamOutput {
     }
 
     nonisolated public func stream(_ stream: some StreamConvertible, didOutput video: CMSampleBuffer) {
+        let image = try? video.imageBuffer?.makeCIImage()
         Task { @MainActor in
-            displayImage = try? video.imageBuffer?.makeCIImage()
+            displayImage = image
             #if os(macOS)
             self.needsDisplay = true
             #else
