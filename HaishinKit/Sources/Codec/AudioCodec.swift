@@ -80,9 +80,18 @@ final class AudioCodec {
         }
     }
 
+    /// Tracks consecutive conversion failures for throttled logging.
+    private var consecutiveConversionFailures = 0
+    /// Tracks whether we've logged the nil-converter warning (reset when converter is created).
+    private var loggedNilConverter = false
+
     func append(_ audioBuffer: AVAudioBuffer, when: AVAudioTime) {
         inputFormat = audioBuffer.format
         guard let audioConverter, isRunning else {
+            if !loggedNilConverter && isRunning {
+                logger.warn("AudioCodec: dropping audio — audioConverter is nil, inputFormat:", inputFormat as Any)
+                loggedNilConverter = true
+            }
             return
         }
         var error: NSError?
@@ -118,6 +127,7 @@ final class AudioCodec {
             }
             switch outputStatus {
             case .haveData:
+                consecutiveConversionFailures = 0
                 if audioTime.hasAnchor {
                     audioTime.advanced(AVAudioFramePosition(audioConverter.outputFormat.streamDescription.pointee.mFramesPerPacket))
                     _outputStream.yield((outputBuffer, audioTime.at))
@@ -127,6 +137,15 @@ final class AudioCodec {
                 inputBuffersCursor += 1
                 if inputBuffersCursor == inputBuffers.count {
                     inputBuffersCursor = Self.defaultInputBuffersCursor
+                }
+            case .error:
+                releaseOutputBuffer(outputBuffer)
+                consecutiveConversionFailures += 1
+                // Log first failure and then every 100th to avoid spam
+                if consecutiveConversionFailures == 1 || consecutiveConversionFailures % 100 == 0 {
+                    logger.error("AudioCodec: convert failed (\(consecutiveConversionFailures)x), error:", error as Any,
+                                 "inputFormat:", audioConverter.inputFormat,
+                                 "outputFormat:", audioConverter.outputFormat)
                 }
             default:
                 releaseOutputBuffer(outputBuffer)
@@ -152,9 +171,16 @@ final class AudioCodec {
         guard
             let inputFormat,
             let outputFormat = settings.format.makeOutputAudioFormat(inputFormat, sampleRate: settings.sampleRate, channelMap: settings.channelMap) else {
+            logger.warn("AudioCodec: cannot create output format, inputFormat:", inputFormat as Any,
+                         "sampleRate:", settings.sampleRate, "channelMap:", settings.channelMap as Any)
             return nil
         }
         let converter = AVAudioConverter(from: inputFormat, to: outputFormat)
+        if converter == nil {
+            logger.error("AudioCodec: AVAudioConverter init returned nil, from:", inputFormat, "to:", outputFormat)
+        }
+        loggedNilConverter = false
+        consecutiveConversionFailures = 0
         settings.apply(converter, oldValue: nil)
         if inputFormat.formatDescription.mediaSubType == .linearPCM {
             ringBuffer = AudioRingBuffer(inputFormat)

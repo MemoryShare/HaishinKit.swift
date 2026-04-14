@@ -103,4 +103,5 @@ extension _Stream {
             outputs.remove(at: index)
         }
     }
+
 }

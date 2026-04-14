@@ -133,6 +133,7 @@ extension AudioCaptureUnit: AudioMixerDelegate {
     }
 
     func audioMixer(_ audioMixer: some AudioMixer, errorOccurred error: AudioMixerError) {
+        logger.error("AudioCaptureUnit: mixer error:", error)
     }
 
     func audioMixer(_ audioMixer: some AudioMixer, didOutput audioFormat: AVAudioFormat) {
@@ -141,7 +142,12 @@ extension AudioCaptureUnit: AudioMixerDelegate {
 
     func audioMixer(_ audioMixer: some AudioMixer, didOutput audioBuffer: AVAudioPCMBuffer, when: AVAudioTime) {
         if let audioBuffer = audioBuffer.clone() {
+            if continutation == nil {
+                logger.warn("AudioCaptureUnit: continuation is nil, audio buffer dropped")
+            }
             continutation?.yield((audioBuffer, when))
+        } else {
+            logger.warn("AudioCaptureUnit: clone() returned nil, audio buffer dropped, format:", audioBuffer.format)
         }
         monitor.append(audioBuffer, when: when)
     }

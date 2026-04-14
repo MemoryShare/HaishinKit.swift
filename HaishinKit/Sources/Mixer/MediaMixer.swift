@@ -305,6 +305,15 @@ public final actor MediaMixer {
         audioIO.isMonitoringEnabled = monitoringEnabled
     }
 
+    /// Resumes audio capture if it was suspended by a system interruption.
+    ///
+    /// Call this when returning from background if the system interruption `.ended`
+    /// notification was never delivered.
+    @available(tvOS 17.0, *)
+    public func resumeAudio() {
+        audioIO.resume()
+    }
+
     /// Starts capturing from input devices.
     ///
     /// Internally, it is called either when the view is attached or just before publishing. In other cases, please call this method if you want to manually start the capture.

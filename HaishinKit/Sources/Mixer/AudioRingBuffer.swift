@@ -55,6 +55,7 @@ final class AudioRingBuffer {
             sampleTime = targetSampleTime
         }
         if outputBuffer.frameLength < sampleBuffer.numSamples {
+            logger.warn("AudioRingBuffer: buffer overflow, dropping \(sampleBuffer.numSamples) samples (capacity: \(outputBuffer.frameLength))")
             skip += sampleBuffer.numSamples
             return
         }

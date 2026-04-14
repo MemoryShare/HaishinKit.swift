@@ -37,12 +37,19 @@ final class AudioMixerBySingleTrack: AudioMixer {
     }
     private var track: AudioMixerTrack<AudioMixerBySingleTrack>?
 
+    private var loggedNilTrack = false
+
     func append(_ track: UInt8, buffer: CMSampleBuffer) {
         guard settings.mainTrack == track else {
             return
         }
         inSourceFormat = buffer.formatDescription
+        if self.track == nil && !loggedNilTrack {
+            logger.warn("AudioMixerBySingleTrack: track is nil, dropping audio buffer")
+            loggedNilTrack = true
+        }
         self.track?.append(buffer)
+        if self.track != nil { loggedNilTrack = false }
     }
 
     func append(_ track: UInt8, buffer: AVAudioPCMBuffer, when: AVAudioTime) {
@@ -50,7 +57,12 @@ final class AudioMixerBySingleTrack: AudioMixer {
             return
         }
         inSourceFormat = buffer.format.formatDescription
+        if self.track == nil && !loggedNilTrack {
+            logger.warn("AudioMixerBySingleTrack: track is nil, dropping PCM buffer")
+            loggedNilTrack = true
+        }
         self.track?.append(buffer, when: when)
+        if self.track != nil { loggedNilTrack = false }
     }
 }
 

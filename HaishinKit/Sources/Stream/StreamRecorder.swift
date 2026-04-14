@@ -93,6 +93,18 @@ public actor StreamRecorder {
     }
     /// The recording or not.
     public private(set) var isRecording = false
+    /// The current writer status for diagnostics.
+    public var writerStatus: String {
+        guard let writer else { return "nil" }
+        switch writer.status {
+        case .unknown: return "unknown"
+        case .writing: return "writing"
+        case .completed: return "completed"
+        case .failed: return "failed(\(writer.error?.localizedDescription ?? "nil"))"
+        case .cancelled: return "cancelled"
+        @unknown default: return "rawValue(\(writer.status.rawValue))"
+        }
+    }
     /// The the movie fragment interval in sec.
     public private(set) var movieFragmentInterval: Double?
     public private(set) var videoTrackId: UInt8? = UInt8.max
