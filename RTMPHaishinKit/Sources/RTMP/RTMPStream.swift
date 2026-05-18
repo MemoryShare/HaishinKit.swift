@@ -598,6 +598,16 @@ public actor RTMPStream {
             case "|RtmpSampleAccess":
                 audioSampleAccess = message.arguments[0] as? Bool ?? true
                 videoSampleAccess = message.arguments[1] as? Bool ?? true
+                // Telemetry: this server message is what historically starved the
+                // StreamRecorder of audio (see issue.md). We now ignore it for local
+                // outputs, but log every receipt so future occurrences are diagnosable.
+                // Warn when restrictive (reaches Bugsnag via the app's log appender),
+                // info otherwise to avoid breadcrumb noise on every connection.
+                if audioSampleAccess && videoSampleAccess {
+                    logger.info("Received |RtmpSampleAccess audio=true video=true (permissive; ignored for local outputs)")
+                } else {
+                    logger.warn("Received restrictive |RtmpSampleAccess audio=\(audioSampleAccess) video=\(videoSampleAccess) — ignored for local outputs (publish-only app)")
+                }
             default:
                 break
             }
