@@ -775,19 +775,14 @@ extension RTMPStream: _Stream {
             } else {
                 outgoing.append(sampleBuffer)
                 if sampleBuffer.formatDescription?.isCompressed == false {
+                    // MemoryShare patch: `|RtmpSampleAccess` is a playback/consumer-side
+                    // restriction (stop a viewer ripping a stream they are watching). This
+                    // app is publish-only and records its own captured media, so server
+                    // sample-access flags must never starve local outputs such as the
+                    // StreamRecorder. Deliver unconditionally. See issue.md
+                    // ("Silent recording loss" — server `|RtmpSampleAccess`).
                     outputs.forEach {
-                        switch sampleBuffer.formatDescription?.mediaType {
-                        case .audio:
-                            if audioSampleAccess {
-                                $0.stream(self, didOutput: sampleBuffer)
-                            }
-                        case .video:
-                            if videoSampleAccess || ($0 is View) {
-                                $0.stream(self, didOutput: sampleBuffer)
-                            }
-                        default:
-                            $0.stream(self, didOutput: sampleBuffer)
-                        }
+                        $0.stream(self, didOutput: sampleBuffer)
                     }
                 }
             }
@@ -811,7 +806,11 @@ extension RTMPStream: _Stream {
             }
         default:
             outgoing.append(audioBuffer, when: when)
-            if audioBuffer is AVAudioPCMBuffer && audioSampleAccess {
+            // MemoryShare patch: deliver PCM audio to local outputs regardless of the
+            // server's `|RtmpSampleAccess` flag. This publish-only app records its own
+            // microphone audio; the consumer-side restriction must not silently starve
+            // the StreamRecorder. See issue.md ("Silent recording loss").
+            if audioBuffer is AVAudioPCMBuffer {
                 outputs.forEach { $0.stream(self, didOutput: audioBuffer, when: when) }
             }
         }
