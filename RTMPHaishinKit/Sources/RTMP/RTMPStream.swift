@@ -598,9 +598,9 @@ public actor RTMPStream {
             case "|RtmpSampleAccess":
                 audioSampleAccess = message.arguments[0] as? Bool ?? true
                 videoSampleAccess = message.arguments[1] as? Bool ?? true
-                // Telemetry: this server message is what historically starved the
-                // StreamRecorder of audio (see issue.md). We now ignore it for local
-                // outputs, but log every receipt so future occurrences are diagnosable.
+                // Telemetry: this server message historically starved the publisher's
+                // local StreamRecorder of audio. We now ignore it for local outputs,
+                // but log every receipt so future occurrences remain diagnosable.
                 // Warn when restrictive (reaches Bugsnag via the app's log appender),
                 // info otherwise to avoid breadcrumb noise on every connection.
                 if audioSampleAccess && videoSampleAccess {
@@ -789,8 +789,8 @@ extension RTMPStream: _Stream {
                     // restriction (stop a viewer ripping a stream they are watching). This
                     // app is publish-only and records its own captured media, so server
                     // sample-access flags must never starve local outputs such as the
-                    // StreamRecorder. Deliver unconditionally. See issue.md
-                    // ("Silent recording loss" — server `|RtmpSampleAccess`).
+                    // StreamRecorder. Deliver unconditionally (mirrors the existing
+                    // `($0 is View)` carve-out already applied to video below).
                     outputs.forEach {
                         $0.stream(self, didOutput: sampleBuffer)
                     }
@@ -819,7 +819,7 @@ extension RTMPStream: _Stream {
             // MemoryShare patch: deliver PCM audio to local outputs regardless of the
             // server's `|RtmpSampleAccess` flag. This publish-only app records its own
             // microphone audio; the consumer-side restriction must not silently starve
-            // the StreamRecorder. See issue.md ("Silent recording loss").
+            // the StreamRecorder.
             if audioBuffer is AVAudioPCMBuffer {
                 outputs.forEach { $0.stream(self, didOutput: audioBuffer, when: when) }
             }
